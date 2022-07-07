@@ -61,7 +61,8 @@ code{
 ## 知网公共爬虫.js
 对公共区域的搜索结果进行自动下载,并导出excel
 
-![image](https://user-images.githubusercontent.com/13176273/177726809-f29a9273-f507-4d9e-aeb3-37a692999e6c.png)
+![image](https://user-images.githubusercontent.com/13176273/177728986-32e37532-a5bb-417e-b4fe-adae096fbd02.png)
+
 
 
 
