@@ -11,12 +11,18 @@
 (function() {
     setTimeout(()=>{
         let hasUrl = /target|url/.test(location.search)
-        let hasText = /即将离开/.test(document.body.innerText)
+        let hasText = /即将离开|/.test(document.body.innerText)
         let hasTextGo = /继续/.test(document.body.innerText)
-        if(hasUrl && hasText && hasTextGo){
+
+        let cto51Url = /transfer\?/.test(location.href)
+        let defaultVal = hasUrl && hasText && hasTextGo;
+        if(defaultVal){
             //使用XPATH表达式查抄指定内容的dom元素
             let a = document.evaluate("//a[contains(., '继续')]", document, null, XPathResult.ANY_TYPE).iterateNext();
             a.click()
+        }else if(hasText && cto51Url){
+            let a = document.querySelector('.urlTransfer .url span').innerText.trim();
+            location.href = a;
         }
     },1000)
 })();
