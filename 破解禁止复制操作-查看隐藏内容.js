@@ -6,6 +6,7 @@
 // @author       You
 // @match        **://**/**
 // @run-at       document-end
+// @grant        GM_setClipboard
 // ==/UserScript==
 
 (function() {
@@ -19,9 +20,7 @@
     function removeDisableCopy(element){
         let parents = getParents(element)
         // 最后,删除dom本身的事件
-        document.oncopy = null;
-        document.onselectstart = null;
-
+        removeEventListener(document)
         // 递归获取所有祖先元素
         function getParents(tag){
             let list = [];
@@ -49,7 +48,7 @@
         let hiddenList =Array.from( document.querySelectorAll('[style*="hidden"]'));
         hiddenList.forEach(item=>{
             let height = getComputedStyle(item).height.match(/\d+/)?.[0]||0;
-            if(Number(height)>0){
+            if(Number(height)>1000){
                 item.style.height = 'auto'
                 item.style.overflow='auto'
             }
