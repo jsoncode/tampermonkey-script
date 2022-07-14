@@ -53,6 +53,14 @@
                 item.style.overflow='auto'
             }
         })
+        //https://www.it1352.com/2711430.html
+        let body1 = document.querySelector('.arc-body-main')
+        if(body1){
+            body1.style.height ='auto'
+            body1.style.overflow ='auto'
+            let mark = document.querySelector('.arc-body-main-more')
+            mark.parentElement.removeChild(mark)
+        }
     }
 
     function removeCodeDisableCopy(){
