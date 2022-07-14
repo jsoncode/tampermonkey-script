@@ -5,24 +5,24 @@
 // @description  try to take over the world!
 // @author       You
 // @match        **://**/**
-// @run-at       document-end
+// @run-at       document-start
 // ==/UserScript==
 
 (function() {
-    setTimeout(()=>{
-        let hasUrl = /target|url/.test(location.search)
-        let hasText = /即将离开|/.test(document.body.innerText)
-        let hasTextGo = /继续/.test(document.body.innerText)
-
-        let cto51Url = /transfer\?/.test(location.href)
-        let defaultVal = hasUrl && hasText && hasTextGo;
-        if(defaultVal){
-            //使用XPATH表达式查抄指定内容的dom元素
-            let a = document.evaluate("//a[contains(., '继续')]", document, null, XPathResult.ANY_TYPE).iterateNext();
-            a.click()
-        }else if(hasText && cto51Url){
-            let a = document.querySelector('.urlTransfer .url span').innerText.trim();
-            location.href = a;
-        }
-    },1000)
+    // https://link.zhihu.com/?target=https%3A//greasyfork.org/zh-CN/
+    // https://blog.51cto.com/transfer?https://davidwalsh.name/cancel-fetch
+     // https://www.jianshu.com/go-wild?ac=2&url=https%3A%2F%2Fwww.npmjs.com%2Fpackage%2F%40craco%2Fcraco
+    let url = '';
+    if(location.href.startsWith('https://link.zhihu.com/?target=http')){
+        url = decodeURIComponent(location.search.match(/target=([^=&?]+)/)?.[1])
+    }
+    if(location.href.startsWith('https://blog.51cto.com/transfer?')){
+        url = decodeURIComponent(location.search.match(/transfer?([^=&?]+)/)?.[1])
+    }
+    if(location.href.startsWith('https://www.jianshu.com/go-wild?ac=2&url=')){
+        url = decodeURIComponent(location.search.match(/url=([^=&?]+)/)?.[1])
+    }
+    if(url){
+        location.href=url
+    }
 })();
