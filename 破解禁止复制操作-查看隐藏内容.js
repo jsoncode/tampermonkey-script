@@ -28,6 +28,7 @@
             function get(e){
                 let p = e.parentElement;
                 // 删除每一层的事件
+                if(!p){return}
                 removeEventListener(p)
                 list.push(p)
                 if(p.tagName!=='HTML'){
