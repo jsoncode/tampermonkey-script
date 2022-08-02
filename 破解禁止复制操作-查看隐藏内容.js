@@ -67,7 +67,7 @@
     function removeCodeDisableCopy(){
         let hiddenList =Array.from( document.querySelectorAll('pre,code'));
         hiddenList.forEach(item=>{
-           item.style.useSelect='unset';
+           item.style.userSelect='unset';
         })
     }
 
