@@ -50,6 +50,9 @@
         hiddenList.forEach(item=>{
             let height = getComputedStyle(item).height.match(/\d+/)?.[0]||0;
             if(Number(height)>1000){
+                // 排除虚拟滚动的情况
+                let hasVirtual = item.querySelector('[class*="rc-virtual-list"]')
+                if(hasVirtual){return}
                 item.style.height = 'auto'
                 item.style.overflow='auto'
             }
