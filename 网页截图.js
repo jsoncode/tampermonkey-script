@@ -33,7 +33,7 @@
                 e.setAttribute('src',e.src.replace(/\?[^\s]*/,search))
             })
             html2canvas(document.body,{
-                scale:scale, // 添加的scale 参数
+                scale:scale * 1, // 添加的scale 参数
                 useCORS: true,
                 allowTaint: false
             }).then(function (canvas) {
