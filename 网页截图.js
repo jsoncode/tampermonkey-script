@@ -14,10 +14,12 @@
     document.addEventListener('dblclick',async()=>{
         console.log('dblclick')
         console.time('down')
-        let blob = await getImgBlob();
+        let scale = prompt('请输入缩放比例，比例越大，越清晰，推荐：2（0.5-5）')
+        if(scale===null){return}
+        let blob = await getImgBlob(scale);
         downloadFile('test.png',blob)
     })
-   async function getImgBlob () {
+   async function getImgBlob (scale) {
         return new Promise(resolve => {
             let imgs = Array.from(document.querySelectorAll('img'))
             imgs.forEach(e=>{
@@ -31,6 +33,7 @@
                 e.setAttribute('src',e.src.replace(/\?[^\s]*/,search))
             })
             html2canvas(document.body,{
+                scale:scale, // 添加的scale 参数
                 useCORS: true,
                 allowTaint: false
             }).then(function (canvas) {
