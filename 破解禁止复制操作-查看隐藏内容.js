@@ -10,7 +10,6 @@
 // ==/UserScript==
 
 (function () {
-	debugger=false;
 	// 页面加载完，清除所有js
 	Array.from(document.querySelectorAll('script')).forEach(i => {
 		i.parentElement.removeChild(i)
@@ -18,7 +17,7 @@
 
 	Array.from(document.querySelectorAll('*')).forEach(el => {
 		// 移除事件
-		let eventName = ['oncopy', 'onselectstart', 'onselectend', 'onkeyup', 'onkeydown', 'oncopy']
+		let eventName = ['oncopy', 'onselectstart', 'onselectend', 'onkeyup', 'onkeydown']
 		eventName.forEach(ev => {
 			el[ev] = false;
 		})
