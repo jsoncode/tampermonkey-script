@@ -4,74 +4,75 @@
 // @version      0.1
 // @description  try to take over the world!
 // @author       You
-// @match        **://**/**
-// @run-at       document-end
+// @match        **://*.csdn.net/*
+// @run-at       document-idle
 // @grant        GM_setClipboard
 // ==/UserScript==
 
-(function() {
-    'use strict';
-    document.addEventListener('click',(e)=>{
-        removeDisableCopy(e.target);
-        removeHidden();
-        removeCodeDisableCopy();
-    })
+(function () {
+	debugger=false;
+	// 页面加载完，清除所有js
+	Array.from(document.querySelectorAll('script')).forEach(i => {
+		i.parentElement.removeChild(i)
+	})
 
-    function removeDisableCopy(element){
-        let parents = getParents(element)
-        // 最后,删除dom本身的事件
-        removeEventListener(document)
-        // 递归获取所有祖先元素
-        function getParents(tag){
-            let list = [];
-            get(tag)
-            function get(e){
-                let p = e.parentElement;
-                // 删除每一层的事件
-                if(!p){return}
-                removeEventListener(p)
-                list.push(p)
-                if(p.tagName!=='HTML'){
-                    return get(p)
-                }
-                return p
-            }
-            return list;
-        }
-        // 删除事件
-        function removeEventListener(element){
-            element.oncopy = null;
-            element.onselectstart = null;
-        }
-    }
+	Array.from(document.querySelectorAll('*')).forEach(el => {
+		// 移除事件
+		let eventName = ['oncopy', 'onselectstart', 'onselectend', 'onkeyup', 'onkeydown', 'oncopy']
+		eventName.forEach(ev => {
+			el[ev] = false;
+		})
+		eventName.forEach(ev => {
+			el.addEventListener(
+				ev.replace(/^on/, ''),
+				event => event.stopImmediatePropagation(),
+				true
+			)
+		})
 
-    function removeHidden(){
-        let hiddenList =Array.from( document.querySelectorAll('[style*="hidden"]'));
-        hiddenList.forEach(item=>{
-            let height = getComputedStyle(item).height.match(/\d+/)?.[0]||0;
-            if(Number(height)>1000){
-                // 排除虚拟滚动的情况
-                let hasVirtual = item.querySelector('[class*="rc-virtual-list"]')
-                if(hasVirtual){return}
-                item.style.height = 'auto'
-                item.style.overflow='auto'
-            }
-        })
-        //https://www.it1352.com/2711430.html
-        let body1 = document.querySelector('.arc-body-main')
-        if(body1){
-            body1.style.height ='auto'
-            body1.style.overflow ='auto'
-            let mark = document.querySelector('.arc-body-main-more')
-            mark.parentElement.removeChild(mark)
-        }
-    }
+		if (getComputedStyle(el).userSelect !== 'auto') {
+			el.style.userSelect = 'unset'
+		}
 
-    function removeCodeDisableCopy(){
-        let hiddenList =Array.from( document.querySelectorAll('pre,code'));
-        hiddenList.forEach(item=>{
-           item.style.userSelect='unset';
-        })
-    }
+		if (getComputedStyle(el).overflow !== 'hidden') {
+			el.style.overflow = 'auto'
+			el.style.height = 'unset'
+		}
+		if (getComputedStyle(el).overflowY !== 'hidden') {
+			el.style.overflow = 'auto'
+			el.style.height = 'unset'
+		}
+	})
 
+	// 只在点击一次页面之后进行清理
+	document.addEventListener('click', (e) => {
+		Array.from(getParents(e.target))?.forEach(el => {
+			if (getComputedStyle(el).block !== 'none') {
+				el.style.display = 'block'
+				el.style.height = 'unset'
+			}
+		})
+	})
+
+	// 递归获取所有祖先元素
+	function getParents(tag) {
+		let list = [];
+		get(tag)
+
+		function get(e) {
+			let p = e.parentElement;
+			// 删除每一层的事件
+			if (!p) {
+				return
+			}
+			removeEventListener(p)
+			list.push(p)
+			if (p.tagName !== 'HTML') {
+				return get(p)
+			}
+			return p
+		}
+
+		return list;
+	}
 })();
