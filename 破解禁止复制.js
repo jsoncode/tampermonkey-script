@@ -62,15 +62,20 @@
 	// 打开隐藏内容
 	document.addEventListener('click', (e) => {
 		Array.from(getParents(e.target))?.forEach(el => {
-			if (getComputedStyle(el).block !== 'none') {
-				el.style.display = 'block'
+			if (getComputedStyle(el).block === 'none') {
+				el.style.display = 'unset'
 			}
-			if (getComputedStyle(el).overflow !== 'hidden') {
-				el.style.overflow = 'auto'
+			if (getComputedStyle(el).overflow === 'hidden') {
+				el.style.overflow = 'unset'
 			}
-			if (getComputedStyle(el).overflowY !== 'hidden') {
-				el.style.overflow = 'auto'
+			if (getComputedStyle(el).overflowY === 'hidden') {
+				el.style.overflow = 'unset'
 			}
+            try{
+                if(getComputedStyle(el).height&&getComputedStyle(el).height.match(/\d+/)[0]*1>1000){
+                    el.style.height = 'unset';
+                }
+            }catch(e){}
 		})
 	})
 
