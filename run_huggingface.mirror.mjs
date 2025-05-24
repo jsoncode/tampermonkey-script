@@ -5,14 +5,9 @@
 2. 运行：./.webpack/bin/node.exe run_huggingface.mirror.mjs
 注意：这里指定的是lm studio自带的nodejs，前面的英文句号不要漏掉：“./.webpack”
  */
-import { dirname, join, basename, extname } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-	copyFileSync,
-	existsSync,
-	readFileSync,
-	writeFileSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, writeFileSync, } from 'node:fs';
 
 // 当前目录
 const __filename = fileURLToPath(import.meta.url);
