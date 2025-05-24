@@ -1,9 +1,9 @@
 /**
- * 用来批量替换lm studio中的huggingface.co地址
- * 用法：
- * 1. 将该mjs文件，拷贝到 LM Studio/resources/app/ 下面
- * 2. 运行：./.webpack/bin/node.exe run_huggingface.mirror.mjs
- * 注意：这里指定的是lm studio自带的nodejs，前面的英文句号不要漏掉：“./.webpack”
+用来批量替换lm studio中的huggingface.co地址
+用法：
+1. 将该mjs文件，拷贝到 LM Studio/resources/app/ 下面
+2. 运行：./.webpack/bin/node.exe run_huggingface.mirror.mjs
+注意：这里指定的是lm studio自带的nodejs，前面的英文句号不要漏掉：“./.webpack”
  */
 import { dirname, join, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
