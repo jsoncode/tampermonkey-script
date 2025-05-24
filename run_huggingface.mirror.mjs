@@ -1,5 +1,5 @@
 /**
-用来批量替换lm studio中的huggingface.co地址
+用来批量替换lm studio中的huggingface.co地址，并备份源文件 xxx.bak.js
 用法：
 1. 将该mjs文件，拷贝到 LM Studio/resources/app/ 下面
 2. 运行：./.webpack/bin/node.exe run_huggingface.mirror.mjs
