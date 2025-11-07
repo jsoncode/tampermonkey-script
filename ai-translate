@@ -8,6 +8,8 @@
 // @run-at       document-end
 // ==/UserScript==
 
+const APIKEY = ''
+
 (function() {
 	'use strict'
 	const languageStore = {}
@@ -184,7 +186,7 @@
 
 		return fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
 			headers: {
-				'Content-Type': 'application/json', authorization: 'APIKEY'
+				'Content-Type': 'application/json', authorization: APIKEY
 			}, method: 'POST', body: JSON.stringify({
 				model, stream, messages: [{
 					role: 'assistant', content: '你是一位专业的翻译人员，精通中英文。'
