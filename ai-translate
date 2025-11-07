@@ -1,0 +1,408 @@
+// ==UserScript==
+// @name         自动翻译
+// @namespace    http://tampermonkey.net/
+// @version      2025-11-05
+// @description  try to take over the world!
+// @author       You
+// @match        *://*/*
+// @run-at       document-end
+// ==/UserScript==
+
+(function() {
+	'use strict'
+	const languageStore = {}
+	let dataMap = {}
+	let loading = false
+
+	function loadingTip(show = true) {
+		loading = show
+		if (!show) {
+			document.querySelector('.ai-translation-loading-tip')?.remove()
+			return
+		}
+		document.body.insertAdjacentHTML('beforeend', '<div class="ai-translation-loading-tip">AI is translating...</div>' + '<style>' + '.ai-translation-loading-tip{position:fixed;top:0.88rem;z-index:1000000;left:50%;transform:translateX(-50%);padding:5px 10px;background:rgba(0,0,0,0.5);backdrop-filter:blur(6px);color:#fff;border-radius:6px;font-size: 14px;}' + '</style>')
+	}
+
+	/**
+	 * 生成元素的最短唯一选择器
+	 */
+	function getShortestSelector(el) {
+		if (el.id) return `#${ el.id }`
+
+		const parts = []
+		let current = el
+
+		while (current && current.nodeType === 1) {
+			let part = current.tagName.toLowerCase()
+
+			if (current.className) {
+				const classList = Array.from(current.classList).filter(Boolean)
+				if (classList.length) part += '.' + classList.join('.')
+			}
+
+			const parent = current.parentElement
+			if (parent) {
+				const siblings = Array.from(parent.children).filter((c) => c.tagName === current.tagName)
+				if (siblings.length > 1) {
+					const index = Array.from(parent.children).indexOf(current) + 1
+					part += `:nth-child(${ index })`
+				}
+			}
+
+			parts.unshift(part)
+
+			const selector = parts.join(' > ')
+			if (document.querySelectorAll(selector).length === 1) return selector
+
+			current = current.parentElement
+		}
+
+		return parts.join(' > ')
+	}
+
+	function saveOneNode(node) {
+		if (['INPUT', 'TEXTAREA'].includes(node.tagName)) {
+			const fullText = node.placeholder
+			if (/[\u4e00-\u9fa5]+/.test(fullText)) {
+				const selector = getShortestSelector(node)
+				const key = selector
+				const old = dataMap[key]
+				if (old === undefined || old.fullText !== fullText && old.translate !== fullText) {
+					dataMap[key] = {
+						nodeType: 'placeholder',
+						selector,
+						pureText: fullText,
+						fullText,
+						index: Object.keys(dataMap).length,
+						translate: ''
+					}
+				}
+			}
+		} else if (node.nodeType === Node.TEXT_NODE) {
+			const fullText = node.textContent
+			// 只保留中文
+			if (/[\u4e00-\u9fa5]+/.test(fullText)) {
+				if (fullText.trim()) {
+					const selector = getShortestSelector(node.parentElement)
+					const nodeIndex = Array.from(node.parentElement.childNodes).indexOf(node)
+					const key = `${ selector }[${ nodeIndex }]`
+					const old = dataMap[key]
+					if (old === undefined || old.fullText !== fullText && old.translate !== fullText) {
+						dataMap[key] = {
+							nodeType: 'nodeValue',
+							selector,
+							pureText: fullText.trim(),
+							fullText,
+							nodeIndex,
+							index: Object.keys(dataMap).length,
+							translate: ''
+						}
+					}
+				}
+			}
+		}
+	}
+
+	function findText(el) {
+		// 找出类型为 Text 的节点
+		if (el.nodeType === Node.TEXT_NODE) {
+			saveOneNode(el)
+		} else {
+			const ignoreList = ['SCRIPT', 'IMG', 'VIDEO', 'IFRAME', 'OBJECT', 'svg', 'g', 'path']
+			if (ignoreList.includes(el.tagName)) {
+				return
+			}
+			const rect = el.getBoundingClientRect()
+			for (const node of el.childNodes) {
+				if (ignoreList.includes(node.tagName)) {
+					continue
+				}
+				const inViewport = rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0
+				if (inViewport && el.innerText.trim()) {
+					if (node.nodeType === Node.TEXT_NODE || ['INPUT', 'TEXTAREA'].includes(node.tagName)) {
+						saveOneNode(node)
+					} else {
+						if (node.childNodes.length > 0) {
+							findText(node)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	function debounce(fn, delay) {
+		let timer = null
+		return function(...args) {
+			clearTimeout(timer)
+			timer = setTimeout(() => {
+				fn.apply(this, args)
+			}, delay)
+		}
+	}
+
+	/**
+	 * 根据并发数比例随机选择模型
+	 * @returns {string} 随机选中的模型名称
+	 */
+	function getRandomModel() {
+		const modelList = {
+			'GLM-4-FlashX-250414': 100,// 并发数 100 速度 4.49s
+			'GLM-4-Flash-250414': 20, // 并发数 20 速度 2.34s
+			'GLM-4-FlashX': 50, // 并发数 50 速度 2.5s
+			'GLM-4-Flash': 200 // 并发数 200 3.77s
+			// 'GLM-4.5-Flash': 2, // 并发数 2 23s超时
+			// 'GLM-4.1V-Thinking-Flash': 5, // 并发数 5 速度 12.5s
+			// 'GLM-4.1V-Thinking-FlashX': 50, // 并发数 50 速度 8.3s
+			// 'GLM-Z1-FlashX': 50, // 并发数 50 6.12s 总是遗漏内容
+		}
+
+		// 转换为数组形式，方便计算
+		const entries = Object.entries(modelList)
+
+		// 计算总权重（总并发数）
+		const total = entries.reduce((sum, [, weight]) => sum + weight, 0)
+
+		// 生成 0 ~ total 之间的随机数
+		const rand = Math.random() * total
+
+		// 根据随机值找到对应的模型
+		let cumulative = 0
+		for (const [model, weight] of entries) {
+			cumulative += weight
+			if (rand <= cumulative) {
+				return model
+			}
+		}
+
+		// 理论上不会执行到这里，兜底返回最后一个
+		return entries[entries.length - 1][0]
+	}
+
+	const fetchAction = async (text, stream = false) => {
+		const model = getRandomModel()
+
+		return fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+			headers: {
+				'Content-Type': 'application/json', authorization: 'APIKEY'
+			}, method: 'POST', body: JSON.stringify({
+				model, stream, messages: [{
+					role: 'assistant', content: '你是一位专业的翻译人员，精通中英文。'
+				}, {
+					role: 'user',
+					content: `${ text }\n上面是一段网页内容提取的文案，翻译以上内容，不要给任何解释，直接输出翻译结果，请注意，这是网页内容，注意翻译内容的长度尽量简短，并保留标记[x]`
+				}]
+			})
+		})
+	}
+
+	const fetchStream = (text, callback, ondone) => {
+		fetchAction(text, true).then(res => {
+			const reader = res.body.getReader()
+			const decoder = new TextDecoder()
+
+			// 使用一个递归的函数读取每一段数据
+			function readChunk() {
+				reader.read().then(({ done, value }) => {
+					if (done) {
+						// 所有数据读取完成后
+						ondone()
+						return
+					}
+
+					// 解码并追加到结果中
+					const text = decoder.decode(value, { stream: true })
+					callback(text)
+					// 继续读取下一个数据块
+					readChunk()
+				})
+			}
+
+			readChunk()
+		})
+	}
+	const setTextToPage = (text, done = false) => {
+		const list = text.trim().split('\n')
+		if (!done) {
+			// 去掉数组最后一个
+			list.pop()
+		}
+		list.map((i) => {
+			const result = i.trim().match(/^\[(\d+)](.*)/)
+			if (result) {
+				const [_, index, v] = result
+				for (let key in dataMap) {
+					const item = dataMap[key]
+					if (v && item.pureText !== v.trim()) {
+						if (item.index.toString() === index) {
+							languageStore[item.pureText] = v.trim()
+							dataMap[key].loading = !done
+							dataMap[key].translate = v.trim()
+							const dom = document.querySelector(item.selector)
+							if (dom) {
+								if (item.nodeType === 'nodeValue') {
+									const node = dom.childNodes[item.nodeIndex]
+									if (node) {
+										node.nodeValue = item.fullText.replace(item.pureText, item.translate)
+									}
+								} else if (item.nodeType === 'placeholder') {
+									dom.placeholder = item.fullText.replace(item.pureText, item.translate)
+								}
+							}
+						}
+					}
+				}
+			}
+		})
+	}
+	const onFetch = async (text) => {
+		// 调用翻译
+		if (loading) {
+			return
+		}
+		loadingTip(true)
+		for (let key in dataMap) {
+			dataMap[key].loading = true
+		}
+		let resultText = ''
+		fetchStream(text, (result) => {
+			result.split(/\s*\n\s*/).forEach(line => {
+				const isDone = line.trim().includes('[DONE]')
+				const jsonText = line.replace(/^data:\s*|data:\s*[DONE]/g, '').trim()
+				if (jsonText) {
+					try {
+						const { error, choices } = JSON.parse(jsonText)
+						if (error) {
+							console.error(error)
+							return
+						}
+						if (choices) {
+							for (let i = 0; i < choices.length; i++) {
+								const { delta } = choices[i]
+								if (delta?.content) {
+									resultText += delta?.content
+								}
+							}
+						}
+						setTextToPage(resultText)
+					} catch (e) {
+					}
+				}
+				if (isDone) {
+					setTextToPage(resultText, true)
+					console.log(resultText)
+				}
+			})
+		}, () => {
+			loadingTip(false)
+			onTranslate()
+		})
+	}
+
+	const onTranslate = () => {
+		const old = []
+		const needTrans = []
+		for (let key in dataMap) {
+			const item = dataMap[key]
+			if (item.translate || item.loading) {
+				continue
+			}
+			const cache = languageStore[item.pureText]
+			if (cache) {
+				old.push(`[${ item.index }]${ cache }`)
+			} else {
+				needTrans.push(`[${ item.index }]${ item.pureText }`)
+			}
+		}
+		if (old.length) {
+			setTextToPage(old.join('\n'), true)
+		}
+		if (needTrans.length) {
+			const text = needTrans.join('\n').trim()
+			debounce(onFetch(text), 500)
+		}
+		console.log(JSON.stringify(languageStore, null, 4))
+	}
+
+	const getTextMap = (doms) => {
+		const list = Array.from(doms)
+
+		list.forEach(el => {
+			findText(el)
+		})
+		onTranslate()
+	}
+
+	const observerView = new IntersectionObserver(entries => {
+		const list = []
+		entries.forEach(entry => {
+			if (entry.isIntersecting) {
+				list.push(entry.target)
+			}
+		})
+		getTextMap(list)
+	}, {
+		root: null,           // 默认是视口
+		rootMargin: '0px',    // 扩展/缩小视口区域
+		threshold: 0.1        // 可见10%时触发
+	})
+	const originalPushState = history.pushState
+	const originalReplaceState = history.replaceState
+
+	function emitHistoryChange(type) {
+		const event = new Event('historychange')
+		event.detail = { type, url: location.href }
+		window.dispatchEvent(event)
+	}
+
+	history.pushState = function(...args) {
+		originalPushState.apply(this, args)
+		emitHistoryChange('pushState')
+	}
+
+	history.replaceState = function(...args) {
+		originalReplaceState.apply(this, args)
+		emitHistoryChange('replaceState')
+	}
+	window.addEventListener('historychange', (e) => {
+		dataMap = {}
+	})
+
+	// 监听前进/后退
+	window.addEventListener('popstate', () => emitHistoryChange('popstate'))
+	window.addEventListener('load', () => {
+		dataMap = {}
+		// getTextMap(document.querySelectorAll('body *'))
+		// 创建观察者实例，回调函数会在DOM变化时触发
+		const observer = new MutationObserver((mutationsList) => {
+			const list = []
+			for (const mutation of mutationsList) {
+				if (mutation.type === 'childList') {
+					const subList = Array.from(mutation.addedNodes)
+
+					subList.forEach(el => {
+						list.push(el)
+						if (el.nodeType === 1) {
+							const elements = document.querySelectorAll('*')
+							if (elements.length > 0) {
+								elements.forEach(el => observerView.observe(el))
+							} else {
+								observerView.observe(el)
+							}
+						}
+					})
+				} else if (mutation.type === 'characterData' && /[\u4e00-\u9fa5]+/.test(mutation.target.nodeValue)) {
+					list.push(mutation.target.parentNode)
+				} else if (mutation.type === 'attributes' && mutation.attributeName !== 'style') {
+					list.push(mutation.target)
+				}
+			}
+			if (list.length) {
+				getTextMap(list)
+			}
+		})
+		observer.observe(document.body, {
+			childList: true, subtree: true, attributes: true, characterData: true
+		})
+	})
+})()
